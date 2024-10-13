@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@std/async": "jsr:@std/async@^1.0.6",
+    "@std/cli": "jsr:@std/cli@^1.0.6",
+    "node-ble": "npm:node-ble@^1.11.0"
+  }
+}
