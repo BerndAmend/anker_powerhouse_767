@@ -146,9 +146,28 @@ if (flags.device === undefined) {
 
 const { bluetooth, destroy } = createBluetooth();
 const adapter = await bluetooth.defaultAdapter();
+const [adapterName, adapterAddress] = await Promise.all([
+  adapter.getName(),
+  adapter.getAddress(),
+]);
+console.debug(`Using adapter ${adapterName} (${adapterAddress})`);
+
+console.debug(`Waiting for ${flags.device}...`);
 const device = await adapter.waitDevice(flags.device);
+const [deviceName, deviceAddress] = await Promise.all([
+  device.getName(),
+  device.getAddress(),
+]);
+console.debug(`Found device ${deviceName} (${deviceAddress}), connecting...`);
+
 await device.connect();
 const gattServer = await device.gatt();
+const services = await gattServer.services();
+console.debug(`Connected. Available services:`)
+for (const service of services) {
+  console.debug(service);
+}
+
 const service1 = await gattServer.getPrimaryService(
   "014bf5da-0000-1000-8000-00805f9b34fb",
 );
