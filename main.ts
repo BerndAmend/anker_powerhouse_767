@@ -2,9 +2,32 @@
 import { createBluetooth } from "node-ble";
 import { parseArgs } from "@std/cli";
 import { delay } from "@std/async";
-import type { Buffer } from "node:buffer";
+import { Buffer } from "node:buffer";
+import NodeBle from "node-ble";
 
-function processData(data: Buffer) {
+function processCharacteristic1(data: Buffer) {
+  console.log(data.toJSON());
+  return {
+    checksumCorrect:
+      data.at(-1) === (data.subarray(0, -1).reduce((x, y) => x + y, 0) & 0xff),
+    raw: data,
+  };
+}
+
+function serializeCharacteristic1(data: {}): Buffer {
+  return Buffer.from([8, 238, 0, 0, 0, 1, 1, 10, 0, 2]);
+  // const ret = Buffer.alloc(10);
+
+  // ret.writeUInt8(0x8);
+  // ret.writeUInt8(0xee, 1);
+
+  // ret.writeUInt8(ret.subarray(0, -1).reduce((x, y) => x + y, 0) & 0xff, 9);
+
+  // return ret;
+}
+
+function processCharacteristic2(data: Buffer) {
+  console.log(data.toJSON());
   let lightState: number;
   let lightStateStr = "";
 
@@ -37,7 +60,8 @@ function processData(data: Buffer) {
       },
       AC: data[9] === 1,
       TwelveVolt: data[10] === 1,
-      //checksum: data[13],
+      checksumCorrect: data.at(-1) === (data.subarray(0, -1).reduce((x, y) =>
+        x + y, 0) & 0xff),
       raw: data,
     };
   }
@@ -126,7 +150,8 @@ function processData(data: Buffer) {
       },
     },
     deviceSerial: data.toString("utf-8", 85, 101),
-    // checksum: data[101],
+    checksumCorrect:
+      data.at(-1) === (data.subarray(0, -1).reduce((x, y) => x + y, 0) & 0xff),
     raw: data,
   };
 
@@ -146,8 +171,14 @@ if (flags.device === undefined) {
 
 const { bluetooth, destroy } = createBluetooth();
 const adapter = await bluetooth.defaultAdapter();
+await adapter.startDiscovery();
 const device = await adapter.waitDevice(flags.device);
+
+// device.on("connect", (state) => console.log("Connected", state));
+// device.on("disconnect", (state) => console.log("Disconnected", state));
+
 await device.connect();
+
 const gattServer = await device.gatt();
 const service1 = await gattServer.getPrimaryService(
   "014bf5da-0000-1000-8000-00805f9b34fb",
@@ -160,18 +191,20 @@ export const characteristic2 = await service1.getCharacteristic(
   "00008888-0000-1000-8000-00805f9b34fb",
 );
 
-// async function readstuff() {
-//   while (true) {
-//     console.log(await characteristic1.readValue());
-//     await delay(1000);
-//   }
-// }
-// readstuff();
+console.log(
+  "characteristic1",
+  processCharacteristic1(await characteristic1.readValue()),
+);
+
+// await characteristic1.writeValue(serializeCharacteristic1({}), {
+//   type: "request",
+// });
 
 await characteristic2.startNotifications();
 characteristic2.on("valuechanged", (buffer) => {
-  const data = processData(buffer);
+  const data = processCharacteristic2(buffer);
   console.log(data);
+  console.log(data.raw.toString("hex"));
   // console.log(data.raw.subarray(0, 17));
   // console.log(data.raw.subarray(43, 65));
   // console.log(data.raw.subarray(73, 74));
